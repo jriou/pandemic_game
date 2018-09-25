@@ -3,7 +3,7 @@ library(shiny)
 library(networkD3)
 library(DT) # use package for editable DF.
 library(cowplot)
-
+library(scales)
 
 scriptPath <- function() {getSrcDirectory(scriptPath);}
 setwd(scriptPath())
@@ -23,7 +23,7 @@ server <- function(input, output, session) {
   output$simple = renderSimpleNetwork({
     simpleNetwork(data.frame(src = rv$data2$sid, target = rv$data2$id),fontSize=12,fontFamily="Helvetica",opacity=.8)
   })
-  output$plots = renderPlot({
+  output$plots = renderPlot({ # this gives some errors in absence of data/data with sufficient labels.
     # epidemic curve
     d_epicurve = rv$data2
     d_epicurve$time2 = as.POSIXct(d_epicurve$time,format="%H:%M")
@@ -33,7 +33,7 @@ server <- function(input, output, session) {
       scale_x_datetime() +
       scale_y_continuous(expand=c(0,0)) +
       labs(x="Time of reporting",y="N")
-    
+
     # distribution of secondary cases
     data<-rv$data2
     n_obs = length(data$id)
@@ -52,12 +52,12 @@ server <- function(input, output, session) {
       geom_text(x=max(as.numeric(dist_edges$n_edges)),y=max(dist_edges$Freq)-1.05,label=expression(R[0]),hjust=1,size=5) +
       geom_text(x=max(as.numeric(dist_edges$n_edges)),y=max(dist_edges$Freq)-1,label=Rn,hjust=0,size=5) +
       geom_point(aes(x=max(as.numeric(dist_edges$n_edges))+1.5,y=max(dist_edges$Freq)-1),col="white")
-    
+
     # age gender
     #d_ag = data()
     d_ag=rv$data2
     d_ag$agecut = cut(d_ag$age,breaks=seq(0,90,by=5))
-    d_ag$gender2 = factor(d_ag$gender,labels=c("Women","Men"))
+    d_ag$gender2 = factor(d_ag$gender,labels=c("Women","Men"), levels=c(0,1))
     g3 = ggplot(d_ag) +
       geom_bar(aes(x=agecut),colour="black",fill="steelblue",alpha=.8) +
       theme_cowplot() +
@@ -67,7 +67,7 @@ server <- function(input, output, session) {
       scale_fill_manual(values=c("tomato","steelblue"),labels=c("Women","Men"),guide=FALSE) +
       theme_cowplot() +
       labs(x="Gender",y="N")
-    
+
     plot_grid(g1,g2,g3,g4)
   })
   output$x1 = renderDT(data1, selection = 'none', editable = TRUE, options = list(order = list(list(1, 'desc'))))
@@ -107,7 +107,11 @@ server <- function(input, output, session) {
     rv$data2<-updated_data
     replaceData(proxy, rv$data2, resetPaging = FALSE) #update displayed data again.
     
-    updateTextInput(session, "id", value = as.numeric(input$id)+1) # set id to next.
+    if(nrow(updated_data)==nrow(old_data)){
+      updateTextInput(session, "id", value = input$id)
+    }else{
+      updateTextInput(session, "id", value = as.numeric(input$id)+1)
+      }
     updateTextInput(session, "age", value = NA)
     updateTextInput(session, "sid", value = NA)
     
