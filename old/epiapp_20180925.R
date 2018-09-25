@@ -1,7 +1,7 @@
 #################################################
 #                                               #
 #       First version of ISPM epi game app      #
-#                 25.09.2018                    #
+#                 11.09.2018                    #
 #                                               #
 #################################################
 #
@@ -15,7 +15,12 @@ library(DT) # use package for editable DF.
 library(shiny)
 library(networkD3)
 library(cowplot)
-
+# install.packages("networkD3")
+# library(networkD3)
+# 
+# networkData <- data.frame(sid, id)
+# networkData <- data.frame(data1$sid, data1$id)
+# simpleNetwork(networkData)
 
 
 scriptPath <- function() {getSrcDirectory(scriptPath);}
@@ -23,7 +28,8 @@ setwd(scriptPath())
 dir.create("temp", showWarnings = FALSE) # create temp dir where timestamped csv files are dumped, to be able to roll back changes.
 
 
-
+data1<- read.csv("data.csv",header=TRUE, stringsAsFactors=FALSE)
+rv<-reactiveValues(data2=data1) #rv$dat2 is a reactive dataframe.
 
 ui <- fluidPage(
   titlePanel("PANDEMICS: infection spreads at ISPM!"),
@@ -54,16 +60,13 @@ ui <- fluidPage(
 )
 
 server <- function(input, output, session) {
+      #x = data1
+      #x$Date = Sys.time() + seq_len(nrow(x))
+      #output$x1 = renderDT(data1[seq(dim(data1)[1],1),], selection = 'none', editable = TRUE)
 
-  
-  data1<- read.csv("data.csv",header=TRUE, stringsAsFactors=FALSE)
-  rv<-reactiveValues(data2=data1) #rv$dat2 is a reactive dataframe.
-  
-  
   output$simple = renderSimpleNetwork({
     simpleNetwork(data.frame(src = rv$data2$sid, target = rv$data2$id),fontSize=12,fontFamily="Helvetica",opacity=.8)
   })
-  
   output$plots = renderPlot({
     # epidemic curve
     d_epicurve = rv$data2
@@ -111,8 +114,10 @@ server <- function(input, output, session) {
     
     plot_grid(g1,g2,g3,g4)
   })
-  
   output$x1 = renderDT(data1, selection = 'none', editable = TRUE, options = list(order = list(list(1, 'desc'))))
+  # 
+  # output$plot1<-renderPlot({
+  #   ggplot(data1,aes(x=age))+geom_histogram()},height = 400,width = 600)
 
   proxy = dataTableProxy('x1')
 
