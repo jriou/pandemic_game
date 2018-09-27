@@ -1,3 +1,6 @@
+library(DT)
+library(networkD3)
+
 ui <- fluidPage(
   titlePanel("PANDEMICS: infection spreads at ISPM!"),
   tags$p(),tags$br(),
@@ -14,13 +17,14 @@ ui <- fluidPage(
       
       # show table
       tags$p(),tags$br(),
-      DTOutput('x1'),
+      div(
+        DTOutput('x1')),
       
       width=3),
     
     
     mainPanel(
-      simpleNetworkOutput("simple", width = "100%", height = "500px"),
+      forceNetworkOutput("force", width = "100%", height = "500px"),
       plotOutput("plots", width = "100%", height = "400px")
     )
   )

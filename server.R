@@ -4,6 +4,7 @@ library(networkD3)
 library(DT) # use package for editable DF.
 library(cowplot)
 library(scales)
+library(htmlwidgets)
 
 scriptPath <- function() {getSrcDirectory(scriptPath);}
 setwd(scriptPath())
@@ -16,12 +17,50 @@ data1<- read.csv("data.csv",header=TRUE, stringsAsFactors=FALSE)
 
 server <- function(input, output, session) {
   rv<-reactiveValues(data2=data1) #rv$dat2 is a reactive dataframe.
+  
   #x = data1
   #x$Date = Sys.time() + seq_len(nrow(x))
   #output$x1 = renderDT(data1[seq(dim(data1)[1],1),], selection = 'none', editable = TRUE)
   
-  output$simple = renderSimpleNetwork({
-    simpleNetwork(data.frame(src = rv$data2$sid, target = rv$data2$id),fontSize=12,fontFamily="Helvetica",opacity=.8)
+  
+  observeEvent(rv$data2, {
+  output$force = renderForceNetwork({
+    d= rv$data2
+    
+   # d = rv$data2
+    #d = read.csv("data_old.csv")
+    
+    # recalculate id and source id to as forceNetwork doesnt handle inconsistencies well 
+    gid = c(1:NROW(d))
+    # translate the orginal source ids to correspond to the new ids
+    gsid = sapply(d$sid, function (x) {  t = which(d$id  == x);   if(is.vector(t)){ return(t[1]) }  })
+   
+    
+    # assign here to have all nodes
+    nodes = data.frame('name' = as.factor(paste0("id_",as.character(d[gid,]$id))), 'group' = as.factor(d$gender), 'size' = rep(1,NROW(d)))
+    
+    # get rid of inexisting source ids (invalid links)
+    if(any(is.na(gsid)))
+    {
+      t = which(is.na(gsid))
+      gsid = gsid[-t]
+      gid = gid[-t]
+    }
+      
+
+    links = data.frame('source' = gsid -1, 'target' = gid-1, 'value' = rep(1, NROW(gid)))
+  
+    
+    forceNetwork(Links = links, Nodes = nodes,
+                 Source = "source", Target = "target",
+                 Value = "value", NodeID = "name",
+                 Group = "group", opacity = 0.8, colourScale="d3.scaleOrdinal(d3.schemeCategory10);", 
+                 arrows = T, zoom = T, charge = -40, fontSize=12,fontFamily="Helvetica",
+                 linkDistance =JS('function(d) {', 'return 20', '}'), bounded = T)
+    
+    
+    # simpleNetwork(data.frame(src = rv$data2$sid, target = rv$data2$id),fontSize=12,fontFamily="Helvetica",opacity=.8)
+  })
   })
   output$plots = renderPlot({ # this gives some errors in absence of data/data with sufficient labels.
     # epidemic curve
