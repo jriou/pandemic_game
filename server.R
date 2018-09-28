@@ -5,6 +5,7 @@ library(DT) # use package for editable DF.
 library(cowplot)
 library(scales)
 library(htmlwidgets)
+require(visNetwork)
 
 scriptPath <- function() {getSrcDirectory(scriptPath);}
 setwd(scriptPath())
@@ -26,19 +27,19 @@ server <- function(input, output, session) {
   observeEvent(rv$data2, {
   output$force = renderForceNetwork({
     d= rv$data2
-    
-   # d = rv$data2
+
+    #d = rv$data2
     #d = read.csv("data_old.csv")
-    
-    # recalculate id and source id to as forceNetwork doesnt handle inconsistencies well 
+
+    # recalculate id and source id to as forceNetwork doesnt handle inconsistencies well
     gid = c(1:NROW(d))
     # translate the orginal source ids to correspond to the new ids
     gsid = sapply(d$sid, function (x) {  t = which(d$id  == x);   if(is.vector(t)){ return(t[1]) }  })
-   
-    
+
+
     # assign here to have all nodes
     nodes = data.frame('name' = as.factor(paste0("id_",as.character(d[gid,]$id))), 'group' = as.factor(d$gender), 'size' = rep(1,NROW(d)))
-    
+
     # get rid of inexisting source ids (invalid links)
     if(any(is.na(gsid)))
     {
@@ -46,21 +47,64 @@ server <- function(input, output, session) {
       gsid = gsid[-t]
       gid = gid[-t]
     }
-      
+
 
     links = data.frame('source' = gsid -1, 'target' = gid-1, 'value' = rep(1, NROW(gid)))
-  
-    
+
+
     forceNetwork(Links = links, Nodes = nodes,
                  Source = "source", Target = "target",
                  Value = "value", NodeID = "name",
-                 Group = "group", opacity = 0.8, colourScale="d3.scaleOrdinal(d3.schemeCategory10);", 
+                 Group = "group", opacity = 0.8, colourScale="d3.scaleOrdinal(d3.schemeCategory10);",
                  arrows = T, zoom = T, charge = -40, fontSize=12,fontFamily="Helvetica",
                  linkDistance =JS('function(d) {', 'return 20', '}'), bounded = T)
-    
-    
+
+
     # simpleNetwork(data.frame(src = rv$data2$sid, target = rv$data2$id),fontSize=12,fontFamily="Helvetica",opacity=.8)
   })
+    
+  output$visnetwork <- renderVisNetwork({
+      
+      d= rv$data2
+    
+        # recalculate id and source id t
+        gid = c(1:NROW(d))
+        # translate the orginal source ids to correspond to the new ids
+        gsid = sapply(d$sid, function (x) {  t = which(d$id  == x);   if(is.vector(t)){ return(t[1]) }  })
+
+        
+
+        # assign here to have all nodes
+        nodes = data.frame(id = gid, label = paste0("id_",as.character(d[gid,]$id)), group = ifelse(d$gender == 1, "Men", "Women"))
+
+        # get rid of inexisting source ids (invalid links)
+        if(any(is.na(gsid)))
+        {
+          t = which(is.na(gsid))
+          gsid = gsid[-t]
+          gid = gid[-t]
+        }
+        
+        edges <- data.frame(
+          from = gsid,
+          to = gid
+        )
+
+        
+        visNetwork(nodes, edges, width = "100%") %>%
+          visEdges(arrows = "to") %>%
+          visHierarchicalLayout(direction = "LR") %>%
+          visGroups(groupname = "Men", color = "steelblue") %>%
+          visGroups(groupname = "Women", color = "tomato")
+        
+        # # minimal example
+        # nodes <- data.frame(id = 1:3)
+        # edges <- data.frame(from = c(1,2), to = c(1,3))
+        # 
+        # visNetwork(nodes, edges)
+      
+      })
+    
   })
   output$plots = renderPlot({ # this gives some errors in absence of data/data with sufficient labels.
     # epidemic curve
@@ -109,7 +153,7 @@ server <- function(input, output, session) {
 
     plot_grid(g1,g2,g3,g4)
   })
-  output$x1 = renderDT(data1, selection = 'none', editable = TRUE, options = list(order = list(list(1, 'desc'))))
+  output$x1 = renderDT(data1, selection = 'multiple', editable = TRUE, options = list(order = list(list(1, 'desc'))))
   # 
   # output$plot1<-renderPlot({
   #   ggplot(data1,aes(x=age))+geom_histogram()},height = 400,width = 600)
@@ -157,4 +201,14 @@ server <- function(input, output, session) {
     #updatePlots()
   })
   
+  observeEvent(input$deleteRows,{
+    
+    if (!is.null(input$x1_rows_selected)) {
+     
+      write.csv(rv$data2,file=paste0("temp/before_rowdeletion_", format(Sys.time(), "%Y%m%d_%H%M%S_"), "data.csv"),row.names=FALSE)#save timestamped version.
+      rv$data2 = rv$data2[-as.numeric(input$x1_rows_selected),]
+      replaceData(proxy, rv$data2, resetPaging = FALSE)
+     
+    }
+  })
 }
