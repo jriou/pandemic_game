@@ -205,10 +205,15 @@ server <- function(input, output, session) {
     
     if (!is.null(input$x1_rows_selected)) {
      
+      # write backup before deletion
       write.csv(rv$data2,file=paste0("temp/before_rowdeletion_", format(Sys.time(), "%Y%m%d_%H%M%S_"), "data.csv"),row.names=FALSE)#save timestamped version.
+      
+      # delete rows
       rv$data2 = rv$data2[-as.numeric(input$x1_rows_selected),]
       replaceData(proxy, rv$data2, resetPaging = FALSE)
-     
+      
+      # write updated data 
+      write.csv(file="data.csv", rv$data2 , row.names=FALSE) # write the data to file.
     }
   })
 }
