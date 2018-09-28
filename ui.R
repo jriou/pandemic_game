@@ -10,8 +10,10 @@ ui <- fluidPage(
       # input new patient
       numericInput("id", "Id:",value=textOutput("newid"), min=0),
       numericInput("sid", "Source Id:",value=NA,  min=0),
-      selectInput("gender", "Gender:",c("Male" = 1,"Female" = 0)),
+      selectInput("gender", label = NULL,c("Male" = 1,"Female" = 0)),
       numericInput("age", "Age:",value=NA, min=0,max=120),
+      numericInput("floor", "Floor:",value=NA, min=0,max=5),
+      textInput("comment", label = NULL, value = NA, placeholder = 'Additional details'),
       
       # action button
       actionButton("add", "Refresh",width="100%"),
@@ -22,8 +24,8 @@ ui <- fluidPage(
         DTOutput('x1')),
         actionButton("deleteRows", "Delete Rows"),
         selectInput("ngraph", "Network graph type:",
-                  c("Force D3" = "force",
-                    "Vis" = "vis")),
+                  c("Vis" = "vis",
+                    "Force D3" = "force")),
       width=3),
     
     mainPanel(

@@ -1,6 +1,7 @@
 # update 25.09: added back dataframe as reactive value
 library(shiny)
 library(networkD3)
+library(dplyr)
 library(DT) # use package for editable DF.
 library(cowplot)
 library(scales)
@@ -12,11 +13,15 @@ setwd(scriptPath())
 dir.create("temp", showWarnings = FALSE) # create temp dir where timestamped csv files are dumped, to be able to roll back changes.
 
 
-data1<- read.csv("data.csv",header=TRUE, stringsAsFactors=FALSE)
 
 
 
 server <- function(input, output, session) {
+  
+  # set initial id value
+  data1<- read.csv("data.csv",header=TRUE, stringsAsFactors=FALSE)
+  updateTextInput(session, "id", value = max(data1$id)+1)
+
   rv<-reactiveValues(data2=data1) #rv$dat2 is a reactive dataframe.
   
   #x = data1
@@ -28,8 +33,6 @@ server <- function(input, output, session) {
   output$force = renderForceNetwork({
     d= rv$data2
 
-    #d = rv$data2
-    #d = read.csv("data_old.csv")
 
     # recalculate id and source id to as forceNetwork doesnt handle inconsistencies well
     gid = c(1:NROW(d))
@@ -41,16 +44,16 @@ server <- function(input, output, session) {
     nodes = data.frame('name' = as.factor(paste0("id_",as.character(d[gid,]$id))), 'group' = as.factor(d$gender), 'size' = rep(1,NROW(d)))
 
     # get rid of inexisting source ids (invalid links)
-    if(any(is.na(gsid)))
-    {
+    if(any(is.na(gsid))){
       t = which(is.na(gsid))
       gsid = gsid[-t]
       gid = gid[-t]
     }
 
-
     links = data.frame('source' = gsid -1, 'target' = gid-1, 'value' = rep(1, NROW(gid)))
-
+    #print(links)
+    #print(nodes)
+    
 
     forceNetwork(Links = links, Nodes = nodes,
                  Source = "source", Target = "target",
@@ -65,7 +68,7 @@ server <- function(input, output, session) {
     
   output$visnetwork <- renderVisNetwork({
       
-      d= rv$data2
+        d= rv$data2
     
         # recalculate id and source id t
         gid = c(1:NROW(d))
@@ -73,13 +76,20 @@ server <- function(input, output, session) {
         gsid = sapply(d$sid, function (x) {  t = which(d$id  == x);   if(is.vector(t)){ return(t[1]) }  })
 
         
-
-        # assign here to have all nodes
-        nodes = data.frame(id = gid, label = paste0("id_",as.character(d[gid,]$id)), group = ifelse(d$gender == 1, "Men", "Women"))
-
+        gender = ifelse(d$g == 1, "male", ifelse(d$g == 0, "female",  "undefined"))
+        floor = ifelse(d$floor %in% c(0,1,2,3,4,5), d$floor, "undefined")
+        
+        # assign here to have all nodes displayed even if they are not connect to any other
+        nodes = data.frame(id = gid, 
+                           label = paste0("id_",as.character(d[gid,]$id)), 
+                           group = ifelse(d$gender == 1, "Men", "Women"),
+                           title = paste0("Floor: ", d$floor, "<br>", "Time: ", d$time,"<br>", d$comment),
+                           shape = "image",
+                           image = paste0("set2/", gender, "_f", floor, ".svg"), size = 15)
+        print(nodes);
+        
         # get rid of inexisting source ids (invalid links)
-        if(any(is.na(gsid)))
-        {
+        if(any(is.na(gsid))){
           t = which(is.na(gsid))
           gsid = gsid[-t]
           gid = gid[-t]
@@ -90,12 +100,22 @@ server <- function(input, output, session) {
           to = gid
         )
 
+
         
         visNetwork(nodes, edges, width = "100%") %>%
           visEdges(arrows = "to") %>%
-          visHierarchicalLayout(direction = "LR") %>%
-          visGroups(groupname = "Men", color = "steelblue") %>%
-          visGroups(groupname = "Women", color = "tomato")
+          visNodes() %>%
+          visHierarchicalLayout(direction = "LR", levelSeparation = 100, nodeSpacing = 50, sortMethod = 'directed') %>%
+          # fontAwesome:  183,182: women, men sympols; 221,222: venus, mars sympols
+          visGroups(groupname = "Men", shape='icon', icon = list(code = "f183", color="steelblue",size=30)) %>%
+          visGroups(groupname = "Women",  shape='icon', icon = list(code = "f182", color="tomato", size=30)) %>%
+          visOptions(highlightNearest = list(enabled = T, degree = 4, algorithm = "hierarchical"),
+                     nodesIdSelection = list(enabled = T, useLabels = T)) %>%
+          
+          visPhysics(hierarchicalRepulsion = list(nodeDistance = 60)) %>%
+          addFontAwesome()
+          #visConfigure(enabled = TRUE) 
+      
         
         # # minimal example
         # nodes <- data.frame(id = 1:3)
@@ -153,7 +173,28 @@ server <- function(input, output, session) {
 
     plot_grid(g1,g2,g3,g4)
   })
-  output$x1 = renderDT(data1, selection = 'multiple', editable = TRUE, options = list(order = list(list(1, 'desc'))))
+  output$x1 = renderDT(data1, selection = 'multiple', editable = TRUE, 
+                       options = list(order = list(list(1, 'desc')),
+                       columnDefs = list(list(
+                                      targets = 7,
+                                      render = JS(
+                                        "function(data, type, row, meta) {",
+                                        "return type === 'display' && data.length > 6 ?",
+                                        "'<span title=\"' + data + '\">' + data.substr(0, 6) + '...</span>' : data;",
+                                        "}")
+                                    ),list(
+                                      targets = 4,
+                                      render = JS(
+                                        "function(data, type, row, meta) {",
+                                        "//console.log(data);",
+                                        "return type === 'display' && data == 1 ?",
+                                        "'male' : 'female';",
+                                        "}" 
+                                      )
+                                    ), list(
+                                      targets = 0,
+                                      visible = F
+                                    ))                                                               ))
   # 
   # output$plot1<-renderPlot({
   #   ggplot(data1,aes(x=age))+geom_histogram()},height = 400,width = 600)
@@ -170,17 +211,22 @@ server <- function(input, output, session) {
     rv$data2[i, j] <<- DT::coerceValue(v, rv$data2[i, j]) # replace cell value that was clicked
     replaceData(proxy, rv$data2, resetPaging = FALSE)  # update displayed data
     write.csv(file="data.csv", rv$data2, row.names=FALSE) # write the data to file
+    updateTextInput(session, "id", value = max(rv$data2$id)+1)
   })
   
   observeEvent(input$add, {
     
     old_data<-rv$data2
-    updated_data = na.omit(rbind(old_data,
-                                 data.frame(time=format(Sys.time(), "%H:%M"),
-                                            id=input$id,
-                                            sid=input$sid,
-                                            gender=input$gender,
-                                            age=input$age)))
+    
+    updated_data = rbind(old_data,
+                         data.frame(time=format(Sys.time(), "%H:%M"),
+                              id=input$id,
+                              sid=input$sid,
+                              gender=input$gender,
+                              age=input$age,
+                              floor = input$floor,
+                              comment = input$comment)) %>% 
+                    filter(!is.na(id) & !is.na(sid) & !is.na(gender))
     
     write.csv(file="data.csv", updated_data, row.names=FALSE) # write the data to file.
     write.csv(updated_data,file=paste0("temp/", format(Sys.time(), "%Y%m%d_%H%M%S_"), "data.csv"),row.names=FALSE)#save timestamped version.
@@ -190,13 +236,17 @@ server <- function(input, output, session) {
     rv$data2<-updated_data
     replaceData(proxy, rv$data2, resetPaging = FALSE) #update displayed data again.
     
-    if(nrow(updated_data)==nrow(old_data)){
-      updateTextInput(session, "id", value = input$id)
-    }else{
-      updateTextInput(session, "id", value = as.numeric(input$id)+1)
-      }
+    
+    # if(nrow(updated_data)==nrow(old_data)){
+    #   updateTextInput(session, "id", value = input$id)
+    # }else{
+    #   updateTextInput(session, "id", value = as.numeric(input$id)+1)
+    #   }
+    updateTextInput(session, "id", value = max(rv$data2$id)+1)
     updateTextInput(session, "age", value = NA)
     updateTextInput(session, "sid", value = NA)
+    updateTextInput(session, "floor", value = NA)
+    updateTextInput(session, "comment", value = NA)
     
     #updatePlots()
   })
@@ -211,9 +261,10 @@ server <- function(input, output, session) {
       # delete rows
       rv$data2 = rv$data2[-as.numeric(input$x1_rows_selected),]
       replaceData(proxy, rv$data2, resetPaging = FALSE)
+      updateTextInput(session, "id", value = max(rv$data2$id)+1)
       
       # write updated data 
-      write.csv(file="data.csv", rv$data2 , row.names=FALSE) # write the data to file.
+      write.csv(file="data.csv", rv$data2 , row.names=FALSE) 
     }
   })
 }
