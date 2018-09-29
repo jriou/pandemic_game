@@ -2,17 +2,21 @@ library(DT)
 library(networkD3)
 require(visNetwork)
 
+
 ui <- fluidPage(
+  includeCSS("custom.css"),
   titlePanel("PANDEMICS: infection spreads at ISPM!"),
   tags$p(),tags$br(),
   sidebarLayout(
     sidebarPanel(
       # input new patient
-      numericInput("id", "Id:",value=textOutput("newid"), min=0),
-      numericInput("sid", "Source Id:",value=NA,  min=0),
+      div(class= 'input-right', 
+        numericInput("id", "Id:", value = NA,  min=0, width = '100%'),
+        numericInput("sid", "Source Id:",value=NA,  min=0, width = '100%')),
       selectInput("gender", label = NULL,c("Male" = 1,"Female" = 0)),
-      numericInput("age", "Age:",value=NA, min=0,max=120),
-      numericInput("floor", "Floor:",value=NA, min=0,max=5),
+      div(class= 'input-right',
+        numericInput("age", "Age:",value=NA, min=0,max=120, width = '100%'),
+        numericInput("floor", "Floor:",value=NA, min=0,max=5, width = '100%')),
       textInput("comment", label = NULL, value = NA, placeholder = 'Additional details'),
       
       # action button
@@ -23,12 +27,16 @@ ui <- fluidPage(
       div(
         DTOutput('x1')),
         actionButton("deleteRows", "Delete Rows"),
-        selectInput("ngraph", "Network graph type:",
-                  c("Vis" = "vis",
-                    "Force D3" = "force")),
+        selectInput("ngraph", label = NULL,
+                  c("Vis- Network Graph" = "vis",
+                    "Force D3 Network Graph (refersh pls)" = "force")),
+      checkboxInput("flooricons","Show icons with floor", value = F),
       width=3),
     
     mainPanel(
+      
+      #uiOutput("networkgraph"),
+      
       conditionalPanel(condition = "input.ngraph == 'vis'",
         visNetworkOutput("visnetwork",height = "500px")
       ),

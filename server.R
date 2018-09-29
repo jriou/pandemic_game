@@ -65,6 +65,19 @@ server <- function(input, output, session) {
 
     # simpleNetwork(data.frame(src = rv$data2$sid, target = rv$data2$id),fontSize=12,fontFamily="Helvetica",opacity=.8)
   })
+  
+  # render network graphs depending on selection - unfortunately there seems to be some kind bugs in shiny and/or vis
+  # output$networkgraph = renderUI({
+  #   
+  #     if(input$ngraph == "vis"){ 
+  #        removeUI("#visnetwork", multiple = T, immediate = T)
+  #        visNetworkOutput("visnetwork",height = "500px")
+  #     }
+  #     else if(input$ngraph == "force"){
+  #       forceNetworkOutput("force", width = "100%", height = "520px")
+  #     }
+  #       
+  # })
     
   output$visnetwork <- renderVisNetwork({
       
@@ -82,11 +95,14 @@ server <- function(input, output, session) {
         # assign here to have all nodes displayed even if they are not connect to any other
         nodes = data.frame(id = gid, 
                            label = paste0("id_",as.character(d[gid,]$id)), 
-                           group = ifelse(d$gender == 1, "Men", "Women"),
-                           title = paste0("Floor: ", d$floor, "<br>", "Time: ", d$time,"<br>", d$comment),
-                           shape = "image",
-                           image = paste0("set2/", gender, "_f", floor, ".svg"), size = 15)
-        print(nodes);
+                           group = ifelse(d$gender == 1, "Men", "Women"), size = 15,
+                           title = paste0("Floor: ", d$floor, "<br>", "Time: ", d$time,"<br>", d$comment))
+        
+        if(input$flooricons == T){
+            nodes$shape = "image"
+            nodes$image = paste0("set2/", gender, "_f", floor, ".svg")
+        }
+
         
         # get rid of inexisting source ids (invalid links)
         if(any(is.na(gsid))){
