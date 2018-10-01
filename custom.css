@@ -1,0 +1,3 @@
+
+/* prevent line break after label for input elements */
+.input-right  .form-control { display:inline; float:right; width:unset;}
