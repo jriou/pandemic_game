@@ -17,7 +17,7 @@ ui <- fluidPage(
       div(class= 'input-right',
         numericInput("age", "Age:",value=NA, min=0,max=120, width = '100%'),
         numericInput("floor", "Floor:",value=NA, min=0,max=5, width = '100%')),
-      textInput("comment", label = NULL, value = NA, placeholder = 'Additional details'),
+      textInput("comment", label = NULL, value = NA, placeholder = 'Comment'),
       
       # action button
       actionButton("add", "Refresh",width="100%"),

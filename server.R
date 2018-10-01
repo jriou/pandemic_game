@@ -193,6 +193,7 @@ server <- function(input, output, session) {
                        options = list(order = list(list(1, 'desc')),
                        columnDefs = list(list(
                                       targets = 7,
+                                      visible = F,
                                       render = JS(
                                         "function(data, type, row, meta) {",
                                         "return type === 'display' && data.length > 6 ?",
