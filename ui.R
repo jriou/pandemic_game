@@ -31,7 +31,7 @@ ui <- fluidPage(
                   c("Vis- Network Graph" = "vis",
                     "Force D3 Network Graph (refersh pls)" = "force")),
       checkboxInput("flooricons","Show icons with floor", value = F),
-      width=3),
+      width=4),
     
     mainPanel(
       
