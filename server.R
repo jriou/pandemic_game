@@ -194,7 +194,7 @@ server <- function(input, output, session) {
       theme_cowplot() +
       labs(x="Gender",y="N")
 
-    plot_grid(g1,g2,g3,g4)
+    plot_grid(g1,g2,g3)
   })
   output$x1 = renderDT(data1, selection = 'multiple', editable = TRUE, 
                        options = list(
