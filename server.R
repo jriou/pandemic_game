@@ -7,11 +7,15 @@ library(cowplot)
 library(scales)
 library(htmlwidgets)
 require(visNetwork)
+require(reshape2)
+library("circlize")
+library(grid)
 
 scriptPath <- function() {getSrcDirectory(scriptPath);}
 setwd(scriptPath())
 dir.create("temp", showWarnings = FALSE) # create temp dir where timestamped csv files are dumped, to be able to roll back changes.
 
+source("mixing_matrix.R")
 
 
 
@@ -193,8 +197,15 @@ server <- function(input, output, session) {
       scale_fill_manual(values=c("tomato","steelblue"),labels=c("Women","Men"),guide=FALSE) +
       theme_cowplot() +
       labs(x="Gender",y="N")
-
-    plot_grid(g1,g2,g3,g4)
+    
+    # migrationplot
+    g5 = migrationplot_f(ag, rv$data2, col4, col_m, col_f, col_inter)
+    
+    # plot_grid(plot_grid(g1,g2,ncol=2),
+    #           plot_grid(
+    #             plot_grid(g3,g4,ncol=1),
+    #             g5,ncol=2),ncol=1,rel_heights = c(1,2))
+    chordDiagramFromDataFrame(g5)
   })
   output$x1 = renderDT(data1, selection = 'multiple', editable = TRUE, 
                        options = list(order = list(list(1, 'desc')),
