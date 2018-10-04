@@ -99,8 +99,8 @@ server <- function(input, output, session) {
         # assign here to have all nodes displayed even if they are not connect to any other
         nodes = data.frame(id = gid, 
                            label = paste0("id_",as.character(d[gid,]$id)), 
-                           group = ifelse(d$gender == 1, "Men", "Women"), size = 15,
-                           title = paste0("Floor: ", d$floor, "<br>", "Time: ", d$time,"<br>", d$comment))
+                           group = ifelse(d$gender == 1, "Maenner", "Frauen"), size = 15,
+                           title = paste0("Stockwerk: ", d$floor, "<br>", "Zeit: ", d$time,"<br>", d$comment))
         
         if(input$flooricons == T){
             nodes$shape = "image"
@@ -127,8 +127,8 @@ server <- function(input, output, session) {
           visNodes() %>%
           visHierarchicalLayout(direction = "LR", levelSeparation = 100, nodeSpacing = 50, sortMethod = 'directed') %>%
           # fontAwesome:  183,182: women, men sympols; 221,222: venus, mars sympols
-          visGroups(groupname = "Men", shape='icon', icon = list(code = "f183", color="steelblue",size=30)) %>%
-          visGroups(groupname = "Women",  shape='icon', icon = list(code = "f182", color="tomato", size=30)) %>%
+          visGroups(groupname = "Maenner", shape='icon', icon = list(code = "f183", color="steelblue",size=30)) %>%
+          visGroups(groupname = "Frauen",  shape='icon', icon = list(code = "f182", color="tomato", size=30)) %>%
           visOptions(highlightNearest = list(enabled = T, degree = 4, algorithm = "hierarchical"),
                      nodesIdSelection = list(enabled = T, useLabels = T)) %>%
           
@@ -208,7 +208,9 @@ server <- function(input, output, session) {
     chordDiagramFromDataFrame(g5)
   })
   output$x1 = renderDT(data1, selection = 'multiple', editable = TRUE, 
-                       options = list(order = list(list(1, 'desc')),
+                       options = list(
+                      language = list(url = 'DT_german.json'),
+                       order = list(list(1, 'desc')),
                        columnDefs = list(list(
                                       targets = 7,
                                       visible = F,
@@ -223,7 +225,7 @@ server <- function(input, output, session) {
                                         "function(data, type, row, meta) {",
                                         "//console.log(data);",
                                         "return type === 'display' && data == 1 ?",
-                                        "'male' : 'female';",
+                                        "'Mann' : 'Frau';",
                                         "}" 
                                       )
                                     ), list(

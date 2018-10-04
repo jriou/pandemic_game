@@ -5,32 +5,32 @@ require(visNetwork)
 
 ui <- fluidPage(
   includeCSS("custom.css"),
-  titlePanel("PANDEMICS: infection spreads at ISPM!"),
+  titlePanel("PANDEMIE: Infektion breitet sich im ISPM aus!"),
   tags$p(),tags$br(),
   sidebarLayout(
     sidebarPanel(
       # input new patient
       div(class= 'input-right', 
         numericInput("id", "Id:", value = NA,  min=0, width = '100%'),
-        numericInput("sid", "Source Id:",value=NA,  min=0, width = '100%')),
-      selectInput("gender", label = NULL,c("Male" = 1,"Female" = 0)),
+        numericInput("sid", "Quellen Id:",value=NA,  min=0, width = '100%')),
+      selectInput("gender", label = NULL,c("Mann" = 1,"Frau" = 0)),
       div(class= 'input-right',
-        numericInput("age", "Age:",value=NA, min=0,max=120, width = '100%'),
-        numericInput("floor", "Floor:",value=NA, min=0,max=5, width = '100%')),
-      textInput("comment", label = NULL, value = NA, placeholder = 'Comment'),
+        numericInput("age", "Alter:",value=NA, min=0,max=120, width = '100%'),
+        numericInput("floor", "Stockwerk:",value=NA, min=-1,max=5, width = '100%')),
+      textInput("comment", label = NULL, value = NA, placeholder = 'Kommentar'),
       
       # action button
-      actionButton("add", "Refresh",width="100%"),
+      actionButton("add", "Aktualisieren",width="100%"),
       
       # show table
       tags$p(),tags$br(),
       div(
         DTOutput('x1')),
-        actionButton("deleteRows", "Delete Rows"),
+        actionButton("deleteRows", "Zeilen loeschen"),
         selectInput("ngraph", label = NULL,
                   c("Vis- Network Graph" = "vis",
                     "Force D3 Network Graph (refersh pls)" = "force")),
-      checkboxInput("flooricons","Show icons with floor", value = F),
+      checkboxInput("flooricons","Icons mit Stockwerk anzeigen", value = F),
       width=4),
     
     mainPanel(
