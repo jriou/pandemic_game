@@ -205,8 +205,11 @@ server <- function(input, output, session) {
     # migrationplot
     migrationplot_f(ag, rv$data2, col4, col_m, col_f, col_inter)
   })
-  
-  output$x1 = renderDT(data1, selection = 'multiple', editable = TRUE, 
+
+  output$x1 = renderDT({ 
+                      d = data1
+                      names(d) = c("Zeit", "Id", "Index Id", "Geschlecht", "Alter",  "Stockwerk", "Kommentar")
+                      d} , selection = 'multiple', editable = TRUE, 
                        options = list(
                       language = list(url = 'DT_german.json'),
                        order = list(list(1, 'desc')),
