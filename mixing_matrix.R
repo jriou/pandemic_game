@@ -3,7 +3,7 @@
 
 
 # data_mr <- as.data.frame(read.csv("data.csv") )
-lds <- length(data_mr$id)
+#lds <- length(data_mr$id)
 
 # age group of ID
 agegroups <- c("0-15", "16-30","31-45", "46-60", "60+") 

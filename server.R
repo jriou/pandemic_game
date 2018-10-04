@@ -208,7 +208,10 @@ server <- function(input, output, session) {
     #             g5,ncol=2),ncol=1,rel_heights = c(1,2))
     chordDiagramFromDataFrame(g5)
   })
-  output$x1 = renderDT(data1, selection = 'multiple', editable = TRUE, 
+  output$x1 = renderDT({ 
+                      d = data1
+                      names(d) = c("Zeit", "Id", "Index Id", "Geschlecht", "Alter",  "Stockwerk", "Kommentar")
+                      d} , selection = 'multiple', editable = TRUE, 
                        options = list(
                       language = list(url = 'DT_german.json'),
                        order = list(list(1, 'desc')),
