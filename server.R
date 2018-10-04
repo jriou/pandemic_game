@@ -156,26 +156,27 @@ server <- function(input, output, session) {
       theme_cowplot() +
       scale_x_continuous(expand=c(0,0)) +
       scale_y_continuous(expand=c(0,0)) +
-      labs(x="Time of reporting",y="N")
+      labs(x="Registrierungszeitpunkt",y="N")
   })
   output$plot_g2 = renderPlot({
     # distribution of secondary cases
     d_dist = rv$data2
     d_dist$time_diff = Sys.time() - as.POSIXct(d_dist$time,format="%H:%M")
-    n_obs = length(d_dist$id)
-    d_split = split(d_dist$id,d_dist$sid)[-1]
-    n_edges = c(unlist(lapply(d_split,length)),rep(0,n_obs-length(names(d_split))))
+    d_dist$exclude = d_dist$time_diff>0 & d_dist$time_diff<input$exclude_time/60
+    n_obs = length(d_dist$id[!d_dist$exclude])
+    d_split = split(d_dist$id,d_dist$sid)
+    n_edges = c(unlist(lapply(d_split,length)),rep(0,n_obs-length(d_split)))
     # mean secondary cases ignoring people arrived less than 1 hour ago
     Rnought = sum(n_edges) / length(d_dist$time_diff[d_dist$time_diff>1 | d_dist$time_diff < 0])
     RnoughtCI = Rnought + qnorm(0.975) * c(-sd(n_edges),sd(n_edges))/sqrt(n_obs)
     dist_edges = data.frame(table(n_edges))
-    Rn = paste0(" = ",round(Rnought,2))#," [",round(RnoughtCI[1],2),"-",round(RnoughtCI[2],2),"]")
+    Rn = paste0(" = ",sprintf("%.2f",Rnought))#," [",round(RnoughtCI[1],2),"-",round(RnoughtCI[2],2),"]")
     ggplot(dist_edges) +
       geom_bar(aes(x=n_edges,y=Freq),stat="identity",fill="steelblue",alpha=.8,colour="black") +
       theme_cowplot() +
       scale_y_continuous(expand=c(0,0),limits=c(0,max(dist_edges$Freq)+.7)) +
       scale_x_discrete() +
-      labs(x="Number of secondary cases by case",y="N") +
+      labs(x="Anzahl Zweiterkrankter per Fall",y="N") +
       geom_text(x=max(as.numeric(dist_edges$n_edges)),y=max(dist_edges$Freq)+.3,label=expression(R[0]),hjust=1,size=5) +
       geom_text(x=max(as.numeric(dist_edges$n_edges)),y=max(dist_edges$Freq)+.3,label=Rn,hjust=0,size=5) +
       geom_point(aes(x=max(as.numeric(dist_edges$n_edges))+1,y=max(dist_edges$Freq)),col="white")
@@ -186,24 +187,25 @@ server <- function(input, output, session) {
     d_ag$agecut = cut(d_ag$age,breaks=seq(0,90,by=5))
     d_ag$agecut = as.numeric(as.character(
       factor(d_ag$agecut,levels=paste0("(",seq(0,85,by=5),",",seq(5,90,by=5),"]"),labels=seq(2.5,87.5,by=5))))
-    d_ag$gender2 = factor(d_ag$gender,labels=c("Women","Men"), levels=c(0,1))
+    d_ag$gender2 = factor(d_ag$gender,labels=c("Frauen","Männer"), levels=c(0,1))
     g3 = ggplot(d_ag) +
       geom_bar(aes(x=agecut),colour="black",fill="steelblue",alpha=.8,width=5) +
       theme_cowplot() +
       scale_x_continuous(limits=c(0,90),expand=c(0,0)) + 
       scale_y_continuous(expand=c(0,0)) +
-      labs(x="Age",y="N")
+      labs(x="Alter",y="N")
     g4 = ggplot(d_ag) +
       geom_bar(aes(x=gender2,fill=gender2),colour="black",alpha=.8) +
-      scale_fill_manual(values=c("tomato","steelblue"),labels=c("Women","Men"),guide=FALSE) +
+      scale_fill_manual(values=c("tomato","steelblue"),labels=c("Frauen","Männer"),guide=FALSE) +
       theme_cowplot() +
-      labs(x="Gender",y="N")
+      labs(x="Geschlecht",y="N")
     plot_grid(g3,g4,ncol=1)
   })
   output$plot_g5 = renderPlot({
     # migrationplot
     migrationplot_f(ag, rv$data2, col4, col_m, col_f, col_inter)
   })
+  
   output$x1 = renderDT(data1, selection = 'multiple', editable = TRUE, 
                        options = list(
                       language = list(url = 'DT_german.json'),
