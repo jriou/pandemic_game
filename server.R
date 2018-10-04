@@ -146,18 +146,19 @@ server <- function(input, output, session) {
       })
     
   })
-  output$plots = renderPlot({ # this gives some errors in absence of data/data with sufficient labels.
+  output$plot_g1 = renderPlot({ # this gives some errors in absence of data/data with sufficient labels.
     # epidemic curve
     d_epicurve = rv$data2
     d_epicurve$time2 = as.POSIXct(d_epicurve$time,format="%H:%M")
     d_epicurve$time3 = as.numeric(format(d_epicurve$time2,"%H"))
-    g1 = ggplot(d_epicurve) +
+    ggplot(d_epicurve) +
       geom_bar(aes(x=time3),fill="steelblue",alpha=.8,colour="black") +
       theme_cowplot() +
       scale_x_continuous(expand=c(0,0)) +
       scale_y_continuous(expand=c(0,0)) +
       labs(x="Time of reporting",y="N")
-
+  })
+  output$plot_g2 = renderPlot({
     # distribution of secondary cases
     d_dist = rv$data2
     d_dist$time_diff = Sys.time() - as.POSIXct(d_dist$time,format="%H:%M")
@@ -169,7 +170,7 @@ server <- function(input, output, session) {
     RnoughtCI = Rnought + qnorm(0.975) * c(-sd(n_edges),sd(n_edges))/sqrt(n_obs)
     dist_edges = data.frame(table(n_edges))
     Rn = paste0(" = ",round(Rnought,2))#," [",round(RnoughtCI[1],2),"-",round(RnoughtCI[2],2),"]")
-    g2 = ggplot(dist_edges) +
+    ggplot(dist_edges) +
       geom_bar(aes(x=n_edges,y=Freq),stat="identity",fill="steelblue",alpha=.8,colour="black") +
       theme_cowplot() +
       scale_y_continuous(expand=c(0,0),limits=c(0,max(dist_edges$Freq)+.7)) +
@@ -178,9 +179,9 @@ server <- function(input, output, session) {
       geom_text(x=max(as.numeric(dist_edges$n_edges)),y=max(dist_edges$Freq)+.3,label=expression(R[0]),hjust=1,size=5) +
       geom_text(x=max(as.numeric(dist_edges$n_edges)),y=max(dist_edges$Freq)+.3,label=Rn,hjust=0,size=5) +
       geom_point(aes(x=max(as.numeric(dist_edges$n_edges))+1,y=max(dist_edges$Freq)),col="white")
-
+  })
+  output$plot_g34 = renderPlot({
     # age gender
-    #d_ag = data()
     d_ag=rv$data2
     d_ag$agecut = cut(d_ag$age,breaks=seq(0,90,by=5))
     d_ag$agecut = as.numeric(as.character(
@@ -197,16 +198,11 @@ server <- function(input, output, session) {
       scale_fill_manual(values=c("tomato","steelblue"),labels=c("Women","Men"),guide=FALSE) +
       theme_cowplot() +
       labs(x="Gender",y="N")
-
-    
+    plot_grid(g3,g4,ncol=1)
+  })
+  output$plot_g5 = renderPlot({
     # migrationplot
-    g5 = migrationplot_f(ag, rv$data2, col4, col_m, col_f, col_inter)
-    
-    # plot_grid(plot_grid(g1,g2,ncol=2),
-    #           plot_grid(
-    #             plot_grid(g3,g4,ncol=1),
-    #             g5,ncol=2),ncol=1,rel_heights = c(1,2))
-    chordDiagramFromDataFrame(g5)
+    migrationplot_f(ag, rv$data2, col4, col_m, col_f, col_inter)
   })
   output$x1 = renderDT({ 
                       d = data1
