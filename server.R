@@ -92,56 +92,66 @@ server <- function(input, output, session) {
         # translate the orginal source ids to correspond to the new ids
         gsid = sapply(d$sid, function (x) {  t = which(d$id  == x);   if(is.vector(t)){ return(t[1]) }  })
 
+        # replace NA with -1 for next statement
+        gsid[is.na(gsid)] = -1
+        
+        # does the node not have children? (check if 0 rows have a correpsonding source id)
+        gcl = sapply(gid, function (x) { !any(gsid ==x)  })
+        
         
         gender = ifelse(d$g == 1, "male", ifelse(d$g == 0, "female",  "undefined"))
-        floor = ifelse(d$floor %in% c(0,1,2,3,4,5), d$floor, "undefined")
+        floor = ifelse(d$floor %in% c(-1,0,1,2,3,4,5), d$floor, "u")
         
         # assign here to have all nodes displayed even if they are not connect to any other
         nodes = data.frame(id = gid, 
                            label = paste0("id_",as.character(d[gid,]$id)), 
-                           group = ifelse(d$gender == 1, "Maenner", "Frauen"), size = 15,
+                           group = ifelse(d[gid,]$gender == 1, "Maenner", "Frauen"),
                            title = paste0("Stockwerk: ", d$floor, "<br>", "Zeit: ", d$time,"<br>", d$comment))
         
         if(input$flooricons == T){
+            nodes$size = 15
             nodes$shape = "image"
-            nodes$image = paste0("set2/", gender, "_f", floor, ".svg")
+            nodes$image = paste0("set3/", floor, "_",  gender,  ".svg") 
+            nodes[gcl,]$image = paste0("set3/", floor[gcl], "_", gender[gcl],  "_last.svg")
         }
-
-        
+        else{
+          
+          nodes$shape = 'icon'
+          nodes$icon.face = 'FontAwesome'
+          nodes$size = 30
+          nodes$icon.code = ""
+          nodes$icon.color = "black"
+          
+          # fontAwesome:  183,182: women, men sympols; 221,222: venus, mars sympols
+          nodes[nodes$group == 'Maenner', ]$icon.code = "f183"
+          nodes[nodes$group == 'Maenner', ]$icon.color = "steelblue"
+          nodes[nodes$group == 'Frauen', ]$icon.code = "f182"
+          nodes[nodes$group == 'Frauen', ]$icon.color = "tomato"
+          nodes[gcl,]$icon.color = "grey"
+        }
         # get rid of inexisting source ids (invalid links)
-        if(any(is.na(gsid))){
-          t = which(is.na(gsid))
+        if(any(gsid == -1)){
+          t = which(gsid == -1)
           gsid = gsid[-t]
           gid = gid[-t]
         }
         
         edges <- data.frame(
           from = gsid,
-          to = gid
+          to = gid,
+          color = ifelse(gender[gsid] == 'female', 'tomato', 'steelblue')
         )
-
-
         
         visNetwork(nodes, edges, width = "100%") %>%
           visEdges(arrows = "to") %>%
           visNodes() %>%
           visHierarchicalLayout(direction = "LR", levelSeparation = 100, nodeSpacing = 50, sortMethod = 'directed') %>%
-          # fontAwesome:  183,182: women, men sympols; 221,222: venus, mars sympols
-          visGroups(groupname = "Maenner", shape='icon', icon = list(code = "f183", color="steelblue",size=30)) %>%
-          visGroups(groupname = "Frauen",  shape='icon', icon = list(code = "f182", color="tomato", size=30)) %>%
-          visOptions(highlightNearest = list(enabled = T, degree = 4, algorithm = "hierarchical"),
+          visOptions(highlightNearest = list(enabled = T, degree = 500, algorithm = "hierarchical"),
                      nodesIdSelection = list(enabled = T, useLabels = T)) %>%
           
           visPhysics(hierarchicalRepulsion = list(nodeDistance = 60)) %>%
           addFontAwesome()
           #visConfigure(enabled = TRUE) 
-      
-        
-        # # minimal example
-        # nodes <- data.frame(id = 1:3)
-        # edges <- data.frame(from = c(1,2), to = c(1,3))
-        # 
-        # visNetwork(nodes, edges)
       
       })
     
@@ -208,19 +218,14 @@ server <- function(input, output, session) {
 
   output$x1 = renderDT({ 
                       d = data1
-                      names(d) = c("Zeit", "Id", "Index Id", "Geschlecht", "Alter",  "Stockwerk", "Kommentar")
+                      names(d) = c("Zeit", "Id", "Index Id", "Geschlecht", "Alter",  "Stockwerk", "Kommentar", "Ausschliessen")
                       d} , selection = 'multiple', editable = TRUE, 
                        options = list(
                       language = list(url = 'DT_german.json'),
                        order = list(list(1, 'desc')),
                        columnDefs = list(list(
-                                      targets = 7,
-                                      visible = F,
-                                      render = JS(
-                                        "function(data, type, row, meta) {",
-                                        "return type === 'display' && data.length > 6 ?",
-                                        "'<span title=\"' + data + '\">' + data.substr(0, 6) + '...</span>' : data;",
-                                        "}")
+                                      targets = c(7,8),
+                                      visible = F
                                     ),list(
                                       targets = 4,
                                       render = JS(
@@ -247,6 +252,7 @@ server <- function(input, output, session) {
     i = info$row
     j = info$col
     v = info$value
+    
     rv$data2[i, j] <<- DT::coerceValue(v, rv$data2[i, j]) # replace cell value that was clicked
     replaceData(proxy, rv$data2, resetPaging = FALSE)  # update displayed data
     write.csv(file="data.csv", rv$data2, row.names=FALSE) # write the data to file
