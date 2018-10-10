@@ -28,6 +28,8 @@ server <- function(input, output, session) {
 
   rv<-reactiveValues(data2=data1) #rv$dat2 is a reactive dataframe.
   
+  
+  
   #x = data1
   #x$Date = Sys.time() + seq_len(nrow(x))
   #output$x1 = renderDT(data1[seq(dim(data1)[1],1),], selection = 'none', editable = TRUE)
@@ -151,7 +153,7 @@ server <- function(input, output, session) {
           
           visPhysics(hierarchicalRepulsion = list(nodeDistance = 60)) %>%
           addFontAwesome()
-          #visConfigure(enabled = TRUE) 
+          #visConfigure(enabled = TRUE)  
       
       })
     
@@ -218,13 +220,13 @@ server <- function(input, output, session) {
 
   output$x1 = renderDT({ 
                       d = data1
-                      names(d) = c("Zeit", "Id", "Index Id", "Geschlecht", "Alter",  "Stockwerk", "Kommentar", "Ausschliessen")
+                      names(d) = c("Zeit", "Id", "Index Id", "Geschlecht", "Alter",  "Stockwerk", "Kommentar")
                       d} , selection = 'multiple', editable = TRUE, 
                        options = list(
                       language = list(url = 'DT_german.json'),
                        order = list(list(1, 'desc')),
                        columnDefs = list(list(
-                                      targets = c(7,8),
+                                      targets = c(7),
                                       visible = F
                                     ),list(
                                       targets = 4,
@@ -295,7 +297,13 @@ server <- function(input, output, session) {
     
     #updatePlots()
   })
-  
+  observeEvent(input$x1_rows_selected, {
+    
+    
+    visNetworkProxy("visnetwork") %>% 
+      visSelectNodes(input$x1_rows_selected)
+    
+  }, ignoreNULL = F)
   observeEvent(input$deleteRows,{
     
     if (!is.null(input$x1_rows_selected)) {
