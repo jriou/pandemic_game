@@ -32,6 +32,7 @@ ui <- fluidPage(
                     "Force D3 Network Graph (refersh pls)" = "force")),
       checkboxInput("flooricons","Icons mit Stockwerk anzeigen", value = F),
       sliderInput("exclude_time","Ohne Infektion in den letzten x Minuten",value=60,min=10,max=240),
+      numericInput("final_time","Alle Sticker aufgebraucht",value=1700),
       width=4),
     
     mainPanel(

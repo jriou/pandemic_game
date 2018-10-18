@@ -91,6 +91,7 @@ server <- function(input, output, session) {
     
         # recalculate id and source id t
         gid = c(1:NROW(d))
+        
         # translate the orginal source ids to correspond to the new ids
         gsid = sapply(d$sid, function (x) {  t = which(d$id  == x);   if(is.vector(t)){ return(t[1]) }  })
 
@@ -98,7 +99,10 @@ server <- function(input, output, session) {
         gsid[is.na(gsid)] = -1
         
         # does the node not have children? (check if 0 rows have a correpsonding source id)
-        gcl = sapply(gid, function (x) { !any(gsid ==x)  })
+        gcl = sapply(gid, function (x) {
+          abs(difftime(Sys.time() , as.POSIXct(d[x,"time"],format="%H:%M")))<input$exclude_time/60 | 
+            as.POSIXct(d[x,"time"],format="%H:%M")>as.POSIXct(as.character(input$final_time),format="%H%M")
+          })
         
         
         gender = ifelse(d$g == 1, "male", ifelse(d$g == 0, "female",  "undefined"))
@@ -129,7 +133,7 @@ server <- function(input, output, session) {
           nodes[nodes$group == 'Maenner', ]$icon.color = "steelblue"
           nodes[nodes$group == 'Frauen', ]$icon.code = "f182"
           nodes[nodes$group == 'Frauen', ]$icon.color = "tomato"
-          nodes[gcl,]$icon.color = "grey"
+          if(!all(!gcl)) nodes[gcl,]$icon.color = "grey"
         }
         # get rid of inexisting source ids (invalid links)
         if(any(gsid == -1)){
@@ -173,25 +177,26 @@ server <- function(input, output, session) {
   output$plot_g2 = renderPlot({
     # distribution of secondary cases
     d_dist = rv$data2
-    d_dist$time_diff = Sys.time() - as.POSIXct(d_dist$time,format="%H:%M")
-    d_dist$exclude = d_dist$time_diff>0 & d_dist$time_diff<input$exclude_time/60
-    n_obs = length(d_dist$id[!d_dist$exclude])
-    d_split = split(d_dist$id,d_dist$sid)
-    n_edges = c(unlist(lapply(d_split,length)),rep(0,n_obs-length(d_split)))
-    # mean secondary cases ignoring people arrived less than 1 hour ago
-    Rnought = sum(n_edges) / length(d_dist$time_diff[d_dist$time_diff>1 | d_dist$time_diff < 0])
-    RnoughtCI = Rnought + qnorm(0.975) * c(-sd(n_edges),sd(n_edges))/sqrt(n_obs)
-    dist_edges = data.frame(table(n_edges))
-    Rn = paste0(" = ",sprintf("%.2f",Rnought))#," [",round(RnoughtCI[1],2),"-",round(RnoughtCI[2],2),"]")
+    d_dist$exclude = abs(difftime(Sys.time() , as.POSIXct(d_dist$time,format="%H:%M")))<input$exclude_time/60 | 
+      as.POSIXct(d_dist$time,format="%H:%M")>as.POSIXct(as.character(input$final_time),format="%H%M")
+    n_sources = sum(!d_dist$exclude)
+    all_edges = data.frame(table(d_dist$sid))
+    all_edges = data.frame(table(all_edges[!(all_edges$Var1 %in% d_dist$id[d_dist$exclude==1]),"Freq"]))
+    dist_edges = rbind(all_edges,data.frame(Var1="0",Freq=n_sources-sum(all_edges$Freq)))
+    dist_edges$secondary_cases=as.numeric(as.character(dist_edges$Var1))
+    
+      # mean secondary cases ignoring people arrived less than 1 hour ago or after we run out of stickers
+    Rnought =  sum(dist_edges$secondary_cases*dist_edges$Freq) / n_sources
+    Rn = paste0(" = ",sprintf("%.2f",Rnought))
     ggplot(dist_edges) +
-      geom_bar(aes(x=n_edges,y=Freq),stat="identity",fill="steelblue",alpha=.8,colour="black") +
+      geom_bar(aes(x=as.character(secondary_cases),y=Freq),stat="identity",fill="steelblue",alpha=.8,colour="black") +
       theme_cowplot() +
       scale_y_continuous(expand=c(0,0),limits=c(0,max(dist_edges$Freq)+.7)) +
       scale_x_discrete() +
       labs(x="Anzahl Zweiterkrankter per Fall",y="N") +
-      geom_text(x=max(as.numeric(dist_edges$n_edges)),y=max(dist_edges$Freq)+.3,label=expression(R[0]),hjust=1,size=5) +
-      geom_text(x=max(as.numeric(dist_edges$n_edges)),y=max(dist_edges$Freq)+.3,label=Rn,hjust=0,size=5) +
-      geom_point(aes(x=max(as.numeric(dist_edges$n_edges))+1,y=max(dist_edges$Freq)),col="white")
+      geom_text(x=max(as.numeric(dist_edges$secondary_cases)),y=max(dist_edges$Freq)+.3,label=expression(R[0]),hjust=1,size=5) +
+      geom_text(x=max(as.numeric(dist_edges$secondary_cases)),y=max(dist_edges$Freq)+.3,label=Rn,hjust=0,size=5) +
+      geom_point(aes(x=max(as.numeric(dist_edges$secondary_cases))+1,y=max(dist_edges$Freq)),col="white")
   })
   output$plot_g34 = renderPlot({
     # age gender
