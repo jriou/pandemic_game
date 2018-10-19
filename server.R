@@ -100,10 +100,10 @@ server <- function(input, output, session) {
         
         # does the node not have children? (check if 0 rows have a correpsonding source id)
         gcl = sapply(gid, function (x) {
-          abs(difftime(Sys.time() , as.POSIXct(d[x,"time"],format="%H:%M")))<input$exclude_time/60 | 
+          abs(difftime(Sys.time() , as.POSIXct(d[x,"time"],format="%H:%M"),units="hours"))<input$exclude_time/60 | 
             as.POSIXct(d[x,"time"],format="%H:%M")>as.POSIXct(as.character(input$final_time),format="%H%M")
           })
-        
+        gcl = which(gcl,TRUE)
         
         gender = ifelse(d$g == 1, "male", ifelse(d$g == 0, "female",  "undefined"))
         floor = ifelse(d$floor %in% c(-1,0,1,2,3,4,5), d$floor, "u")
@@ -133,7 +133,7 @@ server <- function(input, output, session) {
           nodes[nodes$group == 'Maenner', ]$icon.color = "steelblue"
           nodes[nodes$group == 'Frauen', ]$icon.code = "f182"
           nodes[nodes$group == 'Frauen', ]$icon.color = "tomato"
-          if(!all(!gcl)) nodes[gcl,]$icon.color = "grey"
+          if(length(gcl)>0) nodes[gcl,"icon.color"] = "grey"
         }
         # get rid of inexisting source ids (invalid links)
         if(any(gsid == -1)){
@@ -168,28 +168,29 @@ server <- function(input, output, session) {
     d_epicurve$time2 = as.POSIXct(d_epicurve$time,format="%H:%M")
     d_epicurve$time3 = as.numeric(format(d_epicurve$time2,"%H"))
     ggplot(d_epicurve) +
-      geom_bar(aes(x=time3),fill="steelblue",alpha=.8,colour="black") +
+      geom_bar(aes(x=time3),fill="grey",alpha=.8,colour="black",binwidth=1) +
       theme_cowplot() +
-      scale_x_continuous(expand=c(0,0)) +
+      scale_x_continuous(expand=c(0,0),limits=c(7.3,19),breaks=seq(7.5,17.5,by=2),labels=c("8.00","10.00","12.00","14.00","16.00","18.00")) +
       scale_y_continuous(expand=c(0,0)) +
       labs(x="Registrierungszeitpunkt",y="N")
   })
   output$plot_g2 = renderPlot({
     # distribution of secondary cases
     d_dist = rv$data2
-    d_dist$exclude = abs(difftime(Sys.time() , as.POSIXct(d_dist$time,format="%H:%M")))<input$exclude_time/60 | 
+    d_dist = d_dist[!d_dist$sid==0,]
+    d_dist$exclude = abs(difftime(Sys.time() , as.POSIXct(d_dist$time,format="%H:%M"),units="hours"))<input$exclude_time/60 | 
       as.POSIXct(d_dist$time,format="%H:%M")>as.POSIXct(as.character(input$final_time),format="%H%M")
     n_sources = sum(!d_dist$exclude)
     all_edges = data.frame(table(d_dist$sid))
     all_edges = data.frame(table(all_edges[!(all_edges$Var1 %in% d_dist$id[d_dist$exclude==1]),"Freq"]))
-    dist_edges = rbind(all_edges,data.frame(Var1="0",Freq=n_sources-sum(all_edges$Freq)))
+    dist_edges = rbind(all_edges,data.frame(Var1="0",Freq=n_sources-sum(all_edges$Freq)+1))
     dist_edges$secondary_cases=as.numeric(as.character(dist_edges$Var1))
     
       # mean secondary cases ignoring people arrived less than 1 hour ago or after we run out of stickers
     Rnought =  sum(dist_edges$secondary_cases*dist_edges$Freq) / n_sources
     Rn = paste0(" = ",sprintf("%.2f",Rnought))
     ggplot(dist_edges) +
-      geom_bar(aes(x=as.character(secondary_cases),y=Freq),stat="identity",fill="steelblue",alpha=.8,colour="black") +
+      geom_bar(aes(x=as.character(secondary_cases),y=Freq),stat="identity",fill="grey",alpha=.8,colour="black") +
       theme_cowplot() +
       scale_y_continuous(expand=c(0,0),limits=c(0,max(dist_edges$Freq)+.7)) +
       scale_x_discrete() +
@@ -206,7 +207,7 @@ server <- function(input, output, session) {
       factor(d_ag$agecut,levels=paste0("(",seq(0,85,by=5),",",seq(5,90,by=5),"]"),labels=seq(2.5,87.5,by=5))))
     d_ag$gender2 = factor(d_ag$gender,labels=c("Frauen","Männer"), levels=c(0,1))
     g3 = ggplot(d_ag) +
-      geom_bar(aes(x=agecut),colour="black",fill="steelblue",alpha=.8,width=5) +
+      geom_bar(aes(x=agecut),colour="black",fill="grey",alpha=.8,width=5) +
       theme_cowplot() +
       scale_x_continuous(limits=c(0,90),expand=c(0,0)) + 
       scale_y_continuous(expand=c(0,0)) +
