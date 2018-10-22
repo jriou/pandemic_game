@@ -180,14 +180,14 @@ server <- function(input, output, session) {
     d_dist = d_dist[!d_dist$sid==0,]
     d_dist$exclude = abs(difftime(Sys.time() , as.POSIXct(d_dist$time,format="%H:%M"),units="hours"))<input$exclude_time/60 | 
       as.POSIXct(d_dist$time,format="%H:%M")>as.POSIXct(as.character(input$final_time),format="%H%M")
-    n_sources = sum(!d_dist$exclude)
+    n_sources = sum(!d_dist$exclude) + 1
     all_edges = data.frame(table(d_dist$sid))
     all_edges = data.frame(table(all_edges[!(all_edges$Var1 %in% d_dist$id[d_dist$exclude==1]),"Freq"]))
-    dist_edges = rbind(all_edges,data.frame(Var1="0",Freq=n_sources-sum(all_edges$Freq)+1))
+    dist_edges = rbind(all_edges,data.frame(Var1="0",Freq=n_sources-sum(all_edges$Freq)))
     dist_edges$secondary_cases=as.numeric(as.character(dist_edges$Var1))
     
       # mean secondary cases ignoring people arrived less than 1 hour ago or after we run out of stickers
-    Rnought =  sum(dist_edges$secondary_cases*dist_edges$Freq) / n_sources
+    Rnought =  sum(dist_edges$secondary_cases*dist_edges$Freq) / sum(dist_edges$Freq)
     Rn = paste0(" = ",sprintf("%.2f",Rnought))
     ggplot(dist_edges) +
       geom_bar(aes(x=as.character(secondary_cases),y=Freq),stat="identity",fill="grey",alpha=.8,colour="black") +
