@@ -23,8 +23,8 @@ source("mixing_matrix.R")
 server <- function(input, output, session) {
   
   # set initial id value
-  data1<- read.csv("data.csv",header=TRUE, stringsAsFactors=FALSE, colClasses = "character")
-  updateTextInput(session, "id", value = max(data1$id)+1)
+  data1<- read.csv("data.csv",header=TRUE, stringsAsFactors=FALSE)
+  updateTextInput(session, "id", value = max(data1$id, na.rm = T)+1)
 
   rv<-reactiveValues(data2=data1) #rv$dat2 is a reactive dataframe.
   
@@ -89,78 +89,86 @@ server <- function(input, output, session) {
       
         d= rv$data2
     
-        # recalculate id and source id t
-        gid = c(1:NROW(d))
-        
-        # translate the orginal source ids to correspond to the new ids
-        gsid = sapply(d$sid, function (x) {  t = which(d$id  == x);   if(is.vector(t)){ return(t[1]) }  })
-
-        # replace NA with -1 for next statement
-        gsid[is.na(gsid)] = -1
-        
-        # does the node not have children? (check if 0 rows have a correpsonding source id)
-        gcl = sapply(gid, function (x) {
-          abs(difftime(Sys.time() , as.POSIXct(d[x,"time"],format="%H:%M"),units="hours"))<input$exclude_time/60 | 
-            as.POSIXct(d[x,"time"],format="%H:%M")>as.POSIXct(as.character(input$final_time),format="%H%M")
-          })
-        
-        if(!is.null(gcl)) {which(gcl,TRUE) } 
-        
-        gender = ifelse(d$g == 1, "male", ifelse(d$g == 0, "female",  "undefined"))
-        floor = ifelse(d$floor %in% c(-1,0,1,2,3,4,5), d$floor, "u")
-        
-        # assign here to have all nodes displayed even if they are not connect to any other
-        nodes = data.frame(id = gid, 
-                           label = paste0("id_",as.character(d[gid,]$id)), 
-                           group = ifelse(d[gid,]$gender == 1, "Maenner", "Frauen"),
-                           title = paste0("Stockwerk: ", d$floor, "<br>", "Zeit: ", d$time,"<br>", d$comment))
-        
-        if(input$flooricons == T){
-            nodes$size = 15
-            nodes$shape = "image"
-            nodes$image = paste0("set3/", floor, "_",  gender,  ".svg") 
-            nodes[gcl,]$image = paste0("set3/", floor[gcl], "_", gender[gcl],  "_last.svg")
+        # only render if there are entries
+        if(NROW(d) > 0)
+        {
+          
+          # recalculate id and source id t
+          gid = c(1:NROW(d))
+          
+          # translate the orginal source ids to correspond to the new ids
+          gsid = sapply(d$sid, function (x) {  t = which(d$id  == x);   if(is.vector(t)){ return(t[1]) }  })
+  
+          # replace NA with -1 for next statement
+          gsid[is.na(gsid)] = -1
+          
+          # does the node not have children? (check if 0 rows have a correpsonding source id)
+          gcl = sapply(gid, function (x) {
+            abs(difftime(Sys.time() , as.POSIXct(d[x,"time"],format="%H:%M"),units="hours"))<input$exclude_time/60 | 
+              as.POSIXct(d[x,"time"],format="%H:%M")>as.POSIXct(as.character(input$final_time),format="%H%M")
+            })
+          
+          if(! any(is.na(gcl)) & is.logical(gcl)) {which(gcl,TRUE) } 
+          
+          gender = ifelse(d$g == 1, "male", ifelse(d$g == 0, "female",  "undefined"))
+          floor = ifelse(d$floor %in% c(-1,0,1,2,3,4,5), d$floor, "u")
+          
+          # assign here to have all nodes displayed even if they are not connect to any other
+          nodes = data.frame(id = gid, 
+                             label = paste0("id_",as.character(d[gid,]$id)), 
+                             group = ifelse(d[gid,]$gender == 1, "Maenner", "Frauen"),
+                             title = paste0("Stockwerk: ", d$floor, "<br>", "Zeit: ", d$time,"<br>", d$comment))
+          
+          if(input$flooricons == T){
+              nodes$size = 15
+              nodes$shape = "image"
+              nodes$image = paste0("set3/", floor, "_",  gender,  ".svg") 
+              nodes[gcl,]$image = paste0("set3/", floor[gcl], "_", gender[gcl],  "_last.svg")
+          }
+          else{
+            
+            nodes$shape = 'icon'
+            nodes$icon.face = 'FontAwesome'
+            nodes$size = 30
+            nodes$icon.code = ""
+            nodes$icon.color = "black"
+            
+            # fontAwesome:  183,182: women, men sympols; 221,222: venus, mars sympols
+            if("Maenner" %in% nodes$group) nodes[nodes$group == 'Maenner', ]$icon.code = "f183"  
+            if("Maenner" %in% nodes$group) nodes[nodes$group == 'Maenner', ]$icon.color = "steelblue"
+            if("Frauen" %in% nodes$group) nodes[nodes$group == 'Frauen', ]$icon.code = "f182"
+            if("Frauen" %in% nodes$group) nodes[nodes$group == 'Frauen', ]$icon.color = "tomato"
+            
+            if(! any(is.na(gcl)) & is.logical(gcl)) nodes[gcl,"icon.color"] = "grey"
+          }
+          # get rid of inexisting source ids (invalid links)
+          if(any(gsid == -1)){
+            t = which(gsid == -1)
+            gsid = gsid[-t]
+            gid = gid[-t]
+          }
+          
+          edges <- data.frame(
+            from = gsid,
+            to = gid,
+            color = ifelse(gender[gsid] == 'female', 'tomato', 'steelblue')
+          )
+          
+          vn = visNetwork(nodes, edges, width = "100%") %>%
+            visEdges(arrows = "to") %>%
+            visNodes() %>%
+            visHierarchicalLayout(direction = "LR", levelSeparation = 100, nodeSpacing = 50, sortMethod = 'directed') %>%
+            visOptions(highlightNearest = list(enabled = T, degree = 500, algorithm = "hierarchical"),
+                       nodesIdSelection = list(enabled = T, useLabels = T)) %>%
+            
+            visPhysics(hierarchicalRepulsion = list(nodeDistance = 60)) %>%
+            addFontAwesome()
+            #visConfigure(enabled = TRUE) 
+          
+          #visSave(vn,"vnexport.html", selfcontained = T)
+          
+          vn
         }
-        else{
-          
-          nodes$shape = 'icon'
-          nodes$icon.face = 'FontAwesome'
-          nodes$size = 30
-          nodes$icon.code = ""
-          nodes$icon.color = "black"
-          
-          # fontAwesome:  183,182: women, men sympols; 221,222: venus, mars sympols
-          if("Maenner" %in% nodes$group) nodes[nodes$group == 'Maenner', ]$icon.code = "f183"  
-          if("Maenner" %in% nodes$group) nodes[nodes$group == 'Maenner', ]$icon.color = "steelblue"
-          if("Frauen" %in% nodes$group) nodes[nodes$group == 'Frauen', ]$icon.code = "f182"
-          if("Frauen" %in% nodes$group) nodes[nodes$group == 'Frauen', ]$icon.color = "tomato"
-          
-          if(length(gcl)>0) nodes[gcl,"icon.color"] = "grey"
-        }
-        # get rid of inexisting source ids (invalid links)
-        if(any(gsid == -1)){
-          t = which(gsid == -1)
-          gsid = gsid[-t]
-          gid = gid[-t]
-        }
-        
-        edges <- data.frame(
-          from = gsid,
-          to = gid,
-          color = ifelse(gender[gsid] == 'female', 'tomato', 'steelblue')
-        )
-        
-        visNetwork(nodes, edges, width = "100%") %>%
-          visEdges(arrows = "to") %>%
-          visNodes() %>%
-          visHierarchicalLayout(direction = "LR", levelSeparation = 100, nodeSpacing = 50, sortMethod = 'directed') %>%
-          visOptions(highlightNearest = list(enabled = T, degree = 500, algorithm = "hierarchical"),
-                     nodesIdSelection = list(enabled = T, useLabels = T)) %>%
-          
-          visPhysics(hierarchicalRepulsion = list(nodeDistance = 60)) %>%
-          addFontAwesome()
-          #visConfigure(enabled = TRUE)  
-      
       })
     
   })
@@ -168,9 +176,9 @@ server <- function(input, output, session) {
     # epidemic curve
     d_epicurve = rv$data2
     d_epicurve$time2 = as.POSIXct(d_epicurve$time,format="%H:%M")
-    d_epicurve$time3 = as.numeric(format(d_epicurve$time2,"%H"))
+    d_epicurve$time3 = as.numeric(format(d_epicurve$time2,"%H"))+ as.numeric(format(d_epicurve$time2,"%M"))/60
     ggplot(d_epicurve) +
-      geom_bar(aes(x=time3),fill="grey",alpha=.8,colour="black",binwidth=1) +
+      geom_bar(aes(x=time3),fill="grey",alpha=.8,colour="black",binwidth=0.25) +
       theme_cowplot() +
       scale_x_continuous(expand=c(0,0),limits=c(7.3,19),breaks=seq(7.5,17.5,by=2),labels=c("8.00","10.00","12.00","14.00","16.00","18.00")) +
       scale_y_continuous(expand=c(0,0)) +
@@ -194,12 +202,12 @@ server <- function(input, output, session) {
     ggplot(dist_edges) +
       geom_bar(aes(x=as.character(secondary_cases),y=Freq),stat="identity",fill="grey",alpha=.8,colour="black") +
       theme_cowplot() +
-      scale_y_continuous(expand=c(0,0),limits=c(0,max(dist_edges$Freq)+.7)) +
+      scale_y_continuous(expand=c(0,0)) +
       scale_x_discrete() +
       labs(x="Anzahl Zweiterkrankter per Fall",y="N") +
-      geom_text(x=max(as.numeric(dist_edges$secondary_cases)),y=max(dist_edges$Freq)+.3,label=expression(R[0]),hjust=1,size=5) +
-      geom_text(x=max(as.numeric(dist_edges$secondary_cases)),y=max(dist_edges$Freq)+.3,label=Rn,hjust=0,size=5) +
-      geom_point(aes(x=max(as.numeric(dist_edges$secondary_cases))+1,y=max(dist_edges$Freq)),col="white")
+      geom_text(x=max(as.numeric(dist_edges$secondary_cases)),y=max(dist_edges$Freq)*1.1,label=expression(R[0]),hjust=1,size=5) +
+      geom_text(x=max(as.numeric(dist_edges$secondary_cases)),y=max(dist_edges$Freq)*1.1,label=Rn,hjust=0,size=5) +
+      geom_point(aes(x=max(as.numeric(dist_edges$secondary_cases))+1,y=max(dist_edges$Freq)*1.2),col="white")
   })
   output$plot_g34 = renderPlot({
     # age gender
@@ -211,15 +219,23 @@ server <- function(input, output, session) {
     g3 = ggplot(d_ag) +
       geom_bar(aes(x=agecut),colour="black",fill="grey",alpha=.8,width=5) +
       theme_cowplot() +
-      scale_x_continuous(limits=c(0,90),expand=c(0,0)) + 
+      scale_x_continuous(limits=c(0,90),expand=c(0,0), breaks = seq(0,90,by=10)) + 
       scale_y_continuous(expand=c(0,0)) +
       labs(x="Alter",y="N")
     g4 = ggplot(d_ag) +
       geom_bar(aes(x=gender2,fill=gender2),colour="black",alpha=.8) +
       scale_fill_manual(values=c("tomato","steelblue"),labels=c("Frauen","Männer"),guide=FALSE) +
+      scale_y_continuous(expand=c(0,0)) +
       theme_cowplot() +
       labs(x="Geschlecht",y="N")
-    plot_grid(g3,g4,ncol=1)
+    
+    gFd = ggplot(d_ag) +
+      geom_bar(aes(x=floor),colour="black",fill="grey",alpha=.8) +
+      scale_y_continuous(expand=c(0,0)) +
+      theme_cowplot() +
+      labs(x="Stockwerk",y="N")
+    
+    plot_grid(g3, plot_grid(g4,gFd, ncol=2), ncol=1)
   })
   output$plot_g5 = renderPlot({
     # migrationplot
@@ -266,7 +282,7 @@ server <- function(input, output, session) {
     rv$data2[i, j] <<- DT::coerceValue(v, rv$data2[i, j]) # replace cell value that was clicked
     replaceData(proxy, rv$data2, resetPaging = FALSE)  # update displayed data
     write.csv(file="data.csv", rv$data2, row.names=FALSE) # write the data to file
-    updateTextInput(session, "id", value = max(rv$data2$id)+1)
+    updateTextInput(session, "id", value = max(rv$data2$id, na.rm = T)+1)
   })
   
   observeEvent(input$add, {
@@ -322,7 +338,7 @@ server <- function(input, output, session) {
       # delete rows
       rv$data2 = rv$data2[-as.numeric(input$x1_rows_selected),]
       replaceData(proxy, rv$data2, resetPaging = FALSE)
-      updateTextInput(session, "id", value = max(rv$data2$id)+1)
+      updateTextInput(session, "id", value = max(rv$data2$id, na.rm = T)+1)
       
       # write updated data 
       write.csv(file="data.csv", rv$data2 , row.names=FALSE) 
