@@ -23,7 +23,7 @@ source("mixing_matrix.R")
 server <- function(input, output, session) {
   
   # set initial id value
-  data1<- read.csv("data.csv",header=TRUE, stringsAsFactors=FALSE)
+  data1<- read.csv("data.csv",header=TRUE, stringsAsFactors=FALSE, colClasses = "character")
   updateTextInput(session, "id", value = max(data1$id)+1)
 
   rv<-reactiveValues(data2=data1) #rv$dat2 is a reactive dataframe.
@@ -103,7 +103,8 @@ server <- function(input, output, session) {
           abs(difftime(Sys.time() , as.POSIXct(d[x,"time"],format="%H:%M"),units="hours"))<input$exclude_time/60 | 
             as.POSIXct(d[x,"time"],format="%H:%M")>as.POSIXct(as.character(input$final_time),format="%H%M")
           })
-        gcl = which(gcl,TRUE)
+        
+        if(!is.null(gcl)) {which(gcl,TRUE) } 
         
         gender = ifelse(d$g == 1, "male", ifelse(d$g == 0, "female",  "undefined"))
         floor = ifelse(d$floor %in% c(-1,0,1,2,3,4,5), d$floor, "u")
@@ -129,10 +130,11 @@ server <- function(input, output, session) {
           nodes$icon.color = "black"
           
           # fontAwesome:  183,182: women, men sympols; 221,222: venus, mars sympols
-          nodes[nodes$group == 'Maenner', ]$icon.code = "f183"
-          nodes[nodes$group == 'Maenner', ]$icon.color = "steelblue"
-          nodes[nodes$group == 'Frauen', ]$icon.code = "f182"
-          nodes[nodes$group == 'Frauen', ]$icon.color = "tomato"
+          if("Maenner" %in% nodes$group) nodes[nodes$group == 'Maenner', ]$icon.code = "f183"  
+          if("Maenner" %in% nodes$group) nodes[nodes$group == 'Maenner', ]$icon.color = "steelblue"
+          if("Frauen" %in% nodes$group) nodes[nodes$group == 'Frauen', ]$icon.code = "f182"
+          if("Frauen" %in% nodes$group) nodes[nodes$group == 'Frauen', ]$icon.color = "tomato"
+          
           if(length(gcl)>0) nodes[gcl,"icon.color"] = "grey"
         }
         # get rid of inexisting source ids (invalid links)
